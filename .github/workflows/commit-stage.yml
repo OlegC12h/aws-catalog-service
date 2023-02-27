@@ -57,6 +57,8 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew bootBuildImage \
-            --imageName ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+            --imageName $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
       - name: Publish container image
-        run: docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
