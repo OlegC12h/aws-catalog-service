@@ -1,0 +1,62 @@
+name: Commit Stage
+on: push
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - name: Build, unit tests and integration tests
+        run: |
+          chmod +x gradlew 
+          ./gradlew build
+  package:
+    name: Package and Publish
+    if: ${{ github.ref == 'refs/heads/master' }}
+    needs: [ build ]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Build container image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.REPO_NAME }}
+          IMAGE_TAG: latest
+        run: |
+          chmod +x gradlew
+          ./gradlew bootBuildImage \
+            --imageName ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+      - name: Publish container image
+        run: docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
